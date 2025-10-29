@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/chamado.dart';
+import '../utils/app_theme.dart';
 
 class DetalhesChamadoScreen extends StatelessWidget {
   final Chamado chamado;
@@ -13,34 +14,34 @@ class DetalhesChamadoScreen extends StatelessWidget {
   Color _getStatusColor() {
     switch (chamado.getStatusColor()) {
       case 'blue':
-        return Colors.blue;
+        return AppTheme.vibrantViolet;
       case 'orange':
-        return Colors.orange;
+        return AppTheme.peachOrange;
       case 'yellow':
-        return Colors.amber;
+        return AppTheme.atomicTangerine;
       case 'green':
-        return Colors.green;
+        return const Color(0xFF4CAF50);
       case 'grey':
-        return Colors.grey;
+        return AppTheme.coolGray;
       case 'red':
         return Colors.red;
       default:
-        return Colors.blue;
+        return AppTheme.vibrantViolet;
     }
   }
 
   Color _getPrioridadeColor() {
     switch (chamado.getPrioridadeColor()) {
       case 'green':
-        return Colors.green;
+        return const Color(0xFF4CAF50);
       case 'yellow':
-        return Colors.amber;
+        return AppTheme.atomicTangerine;
       case 'orange':
-        return Colors.orange;
+        return AppTheme.peachOrange;
       case 'red':
         return Colors.red;
       default:
-        return Colors.grey;
+        return AppTheme.coolGray;
     }
   }
 
@@ -50,18 +51,26 @@ class DetalhesChamadoScreen extends StatelessWidget {
         DateFormat('dd/MM/yyyy \'às\' HH:mm').format(chamado.dataAbertura);
 
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Detalhes do Chamado'),
       ),
-      body: SingleChildScrollView(
-        child: Column(
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: 16 + MediaQuery.of(context).padding.bottom,
+          ),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Header com status
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: _getStatusColor().withOpacity(0.1),
+                color: _getStatusColor().withOpacity(0.08),
                 border: Border(
                   bottom: BorderSide(
                     color: _getStatusColor(),
@@ -96,20 +105,17 @@ class DetalhesChamadoScreen extends StatelessWidget {
                   // Título
                   Text(
                     chamado.titulo,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: Theme.of(context).textTheme.displaySmall,
                   ),
                   const SizedBox(height: 8),
 
                   // ID do chamado
                   Text(
                     'Chamado #${chamado.id}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                    ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelMedium
+                        ?.copyWith(color: AppTheme.coolGray),
                   ),
                 ],
               ),
@@ -173,10 +179,10 @@ class DetalhesChamadoScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     chamado.descricao,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(height: 1.5),
                   ),
                   const SizedBox(height: 24),
 
@@ -230,6 +236,8 @@ class DetalhesChamadoScreen extends StatelessWidget {
           ],
         ),
       ),
+      ),
+      ),
     );
   }
 
@@ -239,6 +247,7 @@ class DetalhesChamadoScreen extends StatelessWidget {
       style: const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
+        color: AppTheme.midnightNavy,
       ),
     );
   }
@@ -255,7 +264,7 @@ class DetalhesChamadoScreen extends StatelessWidget {
         Icon(
           icon,
           size: 20,
-          color: Colors.grey[600],
+          color: AppTheme.coolGray,
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -264,9 +273,10 @@ class DetalhesChamadoScreen extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: AppTheme.coolGray,
+                  fontFamily: 'Montserrat',
                 ),
               ),
               const SizedBox(height: 2),
@@ -274,8 +284,9 @@ class DetalhesChamadoScreen extends StatelessWidget {
                 value,
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: valueColor,
+                  fontWeight: FontWeight.w600,
+                  color: valueColor ?? AppTheme.midnightNavy,
+                  fontFamily: 'Montserrat',
                 ),
               ),
             ],
@@ -285,3 +296,4 @@ class DetalhesChamadoScreen extends StatelessWidget {
     );
   }
 }
+

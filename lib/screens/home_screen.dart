@@ -200,6 +200,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     final user = authService.currentUser;
+    final showFab = user?.isTecnico == false;
+    final bottomListPadding = 16.0 + MediaQuery.of(context).padding.bottom + (showFab ? 88.0 : 0.0);
 
     return Scaffold(
       appBar: AppBar(
@@ -245,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomListPadding),
                       itemCount: _chamados.length,
                       itemBuilder: (context, index) {
                         final chamado = _chamados[index];
