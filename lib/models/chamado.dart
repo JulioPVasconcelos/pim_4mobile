@@ -23,43 +23,68 @@ class Chamado {
     this.tecnicoNome,
   });
 
-  // Converter JSON da API para objeto Chamado
+  // AJUSTADO PARA A API SISTEC
   factory Chamado.fromJson(Map<String, dynamic> json) {
+    // Extrair título do campo descricao_detalhada se existir
+    String titulo = json['titulo_chamado'] ?? 'Sem título';
+    String descricao = json['descricao_detalhada'] ?? '';
+
+    // Converter prioridade numérica para string
+    String prioridade = _converterPrioridade(json['prioridade_chamado']);
+
     return Chamado(
-      id: json['id'].toString(),
-      titulo: json['titulo'] ?? json['title'] ?? '',
-      descricao: json['descricao'] ?? json['description'] ?? '',
-      status: json['status'] ?? 'Aberto',
-      prioridade: json['prioridade'] ?? json['priority'] ?? 'Média',
-      categoria: json['categoria'] ?? json['category'] ?? '',
-      dataAbertura: DateTime.parse(json['data_abertura'] ??
-          json['created_at'] ??
-          DateTime.now().toIso8601String()),
-      imagemUrl: json['imagem_url'] ?? json['image_url'],
-      usuarioNome: json['usuario_nome'] ?? json['user_name'] ?? 'Usuário',
-      tecnicoNome: json['tecnico_nome'] ?? json['technician_name'],
+      id: json['id_chamado'].toString(),
+      titulo: titulo,
+      descricao: descricao,
+      status: json['descricao_status_chamado'] ?? 'Aberto',
+      prioridade: prioridade,
+      categoria: json['descricao_categoria_chamado'] ?? '',
+      dataAbertura: DateTime.parse(
+          json['data_abertura'] ?? DateTime.now().toIso8601String()),
+      imagemUrl: null, // API não suporta imagem ainda
+      usuarioNome: json['usuario_abertura'] ?? 'Usuário',
+      tecnicoNome: json['usuario_resolucao'],
     );
   }
 
-  // Cores para o status
+  static String _converterPrioridade(dynamic valor) {
+    if (valor is String) return valor;
+
+    switch (valor) {
+      case 1:
+        return 'Baixa';
+      case 2:
+        return 'Média';
+      case 3:
+        return 'Alta';
+      case 4:
+        return 'Urgente';
+      default:
+        return 'Média';
+    }
+  }
+
+  // Resto do código igual...
   String getStatusColor() {
     switch (status.toLowerCase()) {
       case 'aberto':
         return 'blue';
-      case 'em andamento':
+      case 'aprovado':
+      case 'com analista':
         return 'orange';
-      case 'aguardando':
+      case 'aguardando resposta':
         return 'yellow';
       case 'resolvido':
         return 'green';
       case 'fechado':
         return 'grey';
+      case 'rejeitado':
+        return 'red';
       default:
         return 'blue';
     }
   }
 
-  // Cores para a prioridade
   String getPrioridadeColor() {
     switch (prioridade.toLowerCase()) {
       case 'baixa':

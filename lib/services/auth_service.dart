@@ -26,20 +26,10 @@ class AuthService extends ChangeNotifier {
         return false;
       }
 
-      // Buscar token salvo (com timeout) e fallback em SharedPreferences
-      String? token;
-      try {
-        token = await _secureStorage
-            .read(key: Constants.tokenKey)
-            .timeout(const Duration(seconds: 2), onTimeout: () => null);
-      } catch (_) {
-        token = null;
-      }
-      token ??= prefs.getString(Constants.tokenKey);
+      // Buscar usuário salvo (NÃO precisa de token!)
       final userJson = prefs.getString(Constants.userKey);
 
-      if (token != null && userJson != null) {
-        _apiService.setToken(token);
+      if (userJson != null) {
         _currentUser = User.fromJson(json.decode(userJson));
         _isAuthenticated = true;
         notifyListeners();
@@ -58,16 +48,14 @@ class AuthService extends ChangeNotifier {
     try {
       final response = await _apiService.login(email, senha);
 
-      // Extrair token e dados do usuário
-      final token = response['token'] ?? response['access_token'];
-      final userData = response['user'] ?? response['usuario'];
+      // A API Sistec retorna: { message, usuario }
+      final userData = response['usuario'];
 
-      if (token == null || userData == null) {
+      if (userData == null) {
         throw 'Resposta inválida do servidor';
       }
 
-      // Salvar token e usuário
-      _apiService.setToken(token);
+      // A sessão já está ativa automaticamente (via cookies)!
       _currentUser = User.fromJson(userData);
       _isAuthenticated = true;
 
@@ -76,10 +64,6 @@ class AuthService extends ChangeNotifier {
       await prefs.setBool(Constants.rememberMeKey, rememberMe);
 
       if (rememberMe) {
-        await _secureStorage.write(key: Constants.tokenKey, value: token);
-        // Salvar também no SharedPreferences como fallback
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(Constants.tokenKey, token);
         await prefs.setString(Constants.userKey, json.encode(userData));
       }
 
@@ -92,6 +76,9 @@ class AuthService extends ChangeNotifier {
   // Fazer logout
   Future<void> logout() async {
     try {
+      // Chamar API para encerrar sessão
+      await _apiService.logout();
+
       // Limpar dados salvos
       await _secureStorage.delete(key: Constants.tokenKey);
       final prefs = await SharedPreferences.getInstance();
@@ -107,6 +94,6 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // Obter API Service com token configurado
+  // Obter API Service
   ApiService get apiService => _apiService;
 }

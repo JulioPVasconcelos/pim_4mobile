@@ -150,6 +150,8 @@ class _NovoChamadoScreenState extends State<NovoChamadoScreen> {
       final authService = Provider.of<AuthService>(context, listen: false);
 
       await authService.apiService.criarChamado(
+        idUsuario:
+            int.parse(authService.currentUser!.id), // ← ID do usuário logado
         titulo: _tituloController.text.trim(),
         descricao: _descricaoController.text.trim(),
         categoriaId: _categoriaSelecionada!.id,
@@ -198,204 +200,206 @@ class _NovoChamadoScreenState extends State<NovoChamadoScreen> {
                   16,
                   16,
                   16,
-                  16 + MediaQuery.of(context).padding.bottom + MediaQuery.of(context).viewInsets.bottom,
+                  16 +
+                      MediaQuery.of(context).padding.bottom +
+                      MediaQuery.of(context).viewInsets.bottom,
                 ),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                    // Título
-                    TextFormField(
-                      controller: _tituloController,
-                      decoration: InputDecoration(
-                        labelText: 'Título',
-                        hintText: 'Ex: Computador não liga',
-                        prefixIcon: const Icon(Icons.title),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Digite um título';
-                        }
-                        if (value.trim().length < 5) {
-                          return 'Título muito curto (mín. 5 caracteres)';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Descrição
-                    TextFormField(
-                      controller: _descricaoController,
-                      decoration: InputDecoration(
-                        labelText: 'Descrição',
-                        hintText: 'Descreva o problema detalhadamente',
-                        prefixIcon: const Icon(Icons.description),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignLabelWithHint: true,
-                      ),
-                      maxLines: 5,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Digite uma descrição';
-                        }
-                        if (value.trim().length < 10) {
-                          return 'Descrição muito curta (mín. 10 caracteres)';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Label Categoria
-                    const Text(
-                      'Categoria',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    const SizedBox(height: 8),
-                    // Categoria
-                    DropdownButtonFormField<Categoria>(
-                      initialValue: _categoriaSelecionada,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(
-                          Icons.category,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      items: _categorias.map((categoria) {
-                        return DropdownMenuItem<Categoria>(
-                          value: categoria,
-                          child: Text(categoria.nome),
-                        );
-                      }).toList(),
-                      onChanged: (Categoria? nova) {
-                        setState(() {
-                          _categoriaSelecionada = nova;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null) {
-                          return 'Selecione uma categoria';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Label Prioridade
-                    const Text(
-                      'Prioridade',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    const SizedBox(height: 8),
-                    // Prioridade
-                    DropdownButtonFormField<String>(
-                      initialValue: _prioridadeSelecionada,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(
-                          Icons.flag,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      items: Constants.prioridades.map((prioridade) {
-                        return DropdownMenuItem<String>(
-                          value: prioridade,
-                          child: Text(prioridade),
-                        );
-                      }).toList(),
-                      onChanged: (String? nova) {
-                        setState(() {
-                          _prioridadeSelecionada = nova ?? 'Média';
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Seção de imagem
-                    Text(
-                      'Imagem (opcional)',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Preview da imagem ou botão
-                    if (_imagemSelecionada != null)
-                      Stack(
-                        children: [
-                          ClipRRect(
+                      // Título
+                      TextFormField(
+                        controller: _tituloController,
+                        decoration: InputDecoration(
+                          labelText: 'Título',
+                          hintText: 'Ex: Computador não liga',
+                          prefixIcon: const Icon(Icons.title),
+                          border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.file(
-                              _imagemSelecionada!,
-                              height: 200,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                            ),
                           ),
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: IconButton(
-                              icon: const Icon(Icons.edit),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.white,
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Digite um título';
+                          }
+                          if (value.trim().length < 5) {
+                            return 'Título muito curto (mín. 5 caracteres)';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Descrição
+                      TextFormField(
+                        controller: _descricaoController,
+                        decoration: InputDecoration(
+                          labelText: 'Descrição',
+                          hintText: 'Descreva o problema detalhadamente',
+                          prefixIcon: const Icon(Icons.description),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          alignLabelWithHint: true,
+                        ),
+                        maxLines: 5,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Digite uma descrição';
+                          }
+                          if (value.trim().length < 10) {
+                            return 'Descrição muito curta (mín. 10 caracteres)';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Label Categoria
+                      const Text(
+                        'Categoria',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      const SizedBox(height: 8),
+                      // Categoria
+                      DropdownButtonFormField<Categoria>(
+                        initialValue: _categoriaSelecionada,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(
+                            Icons.category,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items: _categorias.map((categoria) {
+                          return DropdownMenuItem<Categoria>(
+                            value: categoria,
+                            child: Text(categoria.nome),
+                          );
+                        }).toList(),
+                        onChanged: (Categoria? nova) {
+                          setState(() {
+                            _categoriaSelecionada = nova;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null) {
+                            return 'Selecione uma categoria';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Label Prioridade
+                      const Text(
+                        'Prioridade',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      const SizedBox(height: 8),
+                      // Prioridade
+                      DropdownButtonFormField<String>(
+                        initialValue: _prioridadeSelecionada,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(
+                            Icons.flag,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        items: Constants.prioridades.map((prioridade) {
+                          return DropdownMenuItem<String>(
+                            value: prioridade,
+                            child: Text(prioridade),
+                          );
+                        }).toList(),
+                        onChanged: (String? nova) {
+                          setState(() {
+                            _prioridadeSelecionada = nova ?? 'Média';
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Seção de imagem
+                      Text(
+                        'Imagem (opcional)',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Preview da imagem ou botão
+                      if (_imagemSelecionada != null)
+                        Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                _imagemSelecionada!,
+                                height: 200,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
                               ),
-                              onPressed: _selecionarImagem,
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: IconButton(
+                                icon: const Icon(Icons.edit),
+                                style: IconButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                ),
+                                onPressed: _selecionarImagem,
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        OutlinedButton.icon(
+                          onPressed: _selecionarImagem,
+                          icon: const Icon(Icons.add_a_photo),
+                          label: const Text('Adicionar foto'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                        ],
-                      )
-                    else
-                      OutlinedButton.icon(
-                        onPressed: _selecionarImagem,
-                        icon: const Icon(Icons.add_a_photo),
-                        label: const Text('Adicionar foto'),
-                        style: OutlinedButton.styleFrom(
+                        ),
+                      const SizedBox(height: 24),
+
+                      // Botão de criar
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : _criarChamado,
+                        style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                      ),
-                    const SizedBox(height: 24),
-
-                    // Botão de criar
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _criarChamado,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Criar Chamado',
+                                style: TextStyle(fontSize: 16),
                               ),
-                            )
-                          : const Text(
-                              'Criar Chamado',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
     );
   }
 }

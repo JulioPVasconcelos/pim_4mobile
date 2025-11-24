@@ -11,29 +11,25 @@ class User {
     required this.nivel,
   });
 
-  // Converter JSON da API para objeto User
+  // AJUSTADO PARA A API SISTEC
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'].toString(),
-      nome: json['nome'] ?? json['name'] ?? '',
+      id: json['id_usuario'].toString(),
+      nome: json['nome_usuario'] ?? '',
       email: json['email'] ?? '',
-      nivel: json['nivel'] ?? json['nivel_usuario'] ?? 1,
+      nivel: json['nivel_acesso'] ?? 1,
     );
   }
 
-  // Converter objeto User para JSON
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'nome': nome,
+      'id_usuario': int.parse(id),
+      'nome_usuario': nome,
       'email': email,
-      'nivel': nivel,
+      'nivel_acesso': nivel,
     };
   }
 
-  // Verificar se é técnico
   bool get isTecnico => nivel >= 2;
-
-  // Verificar se é admin
   bool get isAdmin => nivel >= 5;
 }

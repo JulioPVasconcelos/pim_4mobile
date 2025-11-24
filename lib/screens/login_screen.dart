@@ -174,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           setState(() => _rememberMe = value ?? false);
                         },
                         fillColor:
-                            MaterialStateProperty.all<Color>(Colors.white),
+                            WidgetStateProperty.all<Color>(Colors.white),
                         checkColor: const Color.fromARGB(255, 10, 10, 10),
                         side: const BorderSide(color: Colors.white, width: 2),
                       ),
