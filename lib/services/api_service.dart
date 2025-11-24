@@ -1,11 +1,18 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:cookie_jar/cookie_jar.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+
 import '../utils/constants.dart';
 import '../models/chamado.dart';
 import '../models/categoria.dart';
-import '../models/user.dart';
+
 
 class ApiService {
   late Dio _dio;
+  late CookieJar _cookieJar;
 
   ApiService() {
     _dio = Dio(BaseOptions(
@@ -14,14 +21,29 @@ class ApiService {
       receiveTimeout: const Duration(seconds: 30),
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
-      // IMPORTANTE: A API usa SESSÃO, não JWT!
-      // Precisamos manter cookies entre requisições
-      followRedirects: true,
+      extra: kIsWeb ? {'withCredentials': true} : null,
       validateStatus: (status) => status! < 500,
     ));
 
-    // Interceptor para log e tratamento de erros
+    _initInterceptors();
+  }
+
+  Future<void> _initInterceptors() async {
+    if (!kIsWeb) {
+      try {
+        final appDocDir = await getApplicationDocumentsDirectory();
+        final path = '${appDocDir.path}/.cookies/';
+        await Directory(path).create(recursive: true);
+        
+        _cookieJar = PersistCookieJar(storage: FileStorage(path));
+        _dio.interceptors.add(CookieManager(_cookieJar));
+      } catch (e) {
+        print('⚠️ Erro ao inicializar cookies no mobile: $e');
+      }
+    }
+
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
         print('📤 ${options.method} ${options.path}');
@@ -38,43 +60,38 @@ class ApiService {
     ));
   }
 
-  // Não precisa de setToken pois usa sessão!
-  // A sessão é mantida automaticamente pelos cookies
-
   // ========================================
   // AUTENTICAÇÃO
   // ========================================
 
-  /// POST /login
-  /// Body: { email, senha }
-  /// Response: { message, usuario }
   Future<Map<String, dynamic>> login(String email, String senha) async {
     try {
       final response = await _dio.post(
-        '/login',
+        Constants.loginEndpoint,
         data: {
           'email': email,
-          'senha': senha,
+          'password': senha,
         },
       );
 
       if (response.statusCode == 200) {
         return response.data;
       } else {
-        throw response.data['error'] ?? 'Erro ao fazer login';
+        throw response.data['message'] ?? response.data['error'] ?? 'Erro ao fazer login';
       }
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  /// POST /logout
   Future<void> logout() async {
     try {
-      await _dio.post('/logout');
+      await _dio.post('/api/auth/logout');
+      if (!kIsWeb) {
+        await _cookieJar.deleteAll();
+      }
     } catch (e) {
-      print('Erro ao fazer logout: $e');
-      // Ignora erros de logout
+      print('Erro logout: $e');
     }
   }
 
@@ -82,13 +99,8 @@ class ApiService {
   // CATEGORIAS
   // ========================================
 
-  /// GET /categorias (ou endpoint correto)
-  /// NOTA: Não vi endpoint de categorias no Swagger!
-  /// Você terá que confirmar o endpoint correto ou usar lista fixa
   Future<List<Categoria>> getCategorias() async {
     try {
-      // TEMPORÁRIO: Lista fixa baseada no Swagger
-      // As categorias são: hardware, software, rede, email, acesso, sistema
       return [
         Categoria(id: 'hardware', nome: 'Hardware'),
         Categoria(id: 'software', nome: 'Software'),
@@ -97,26 +109,8 @@ class ApiService {
         Categoria(id: 'acesso', nome: 'Acesso'),
         Categoria(id: 'sistema', nome: 'Sistema'),
       ];
-
-      // Se tiver endpoint real, use:
-      // final response = await _dio.get('/categorias');
-      // if (response.data is List) {
-      //   return (response.data as List)
-      //       .map((json) => Categoria.fromJson(json))
-      //       .toList();
-      // }
-      // return [];
     } catch (e) {
-      print('Erro ao buscar categorias: $e');
-      // Retorna lista padrão em caso de erro
-      return [
-        Categoria(id: 'hardware', nome: 'Hardware'),
-        Categoria(id: 'software', nome: 'Software'),
-        Categoria(id: 'rede', nome: 'Rede'),
-        Categoria(id: 'email', nome: 'E-mail'),
-        Categoria(id: 'acesso', nome: 'Acesso'),
-        Categoria(id: 'sistema', nome: 'Sistema'),
-      ];
+      return [];
     }
   }
 
@@ -124,37 +118,34 @@ class ApiService {
   // CHAMADOS
   // ========================================
 
-  /// GET /chamados
-  /// Query params opcionais: status, prioridade, etc
   Future<List<Chamado>> getChamados({
     String? status,
     String? prioridade,
     DateTime? dataInicio,
     DateTime? dataFim,
-    User? usuarioLogado,
   }) async {
     try {
       Map<String, dynamic> queryParams = {};
 
-      // Adicione filtros se necessário
       if (status != null) queryParams['status'] = status;
       if (prioridade != null) queryParams['prioridade'] = prioridade;
-      if (dataInicio != null) {
-        queryParams['data_inicio'] = dataInicio.toIso8601String();
-      }
-      if (dataFim != null) {
-        queryParams['data_fim'] = dataFim.toIso8601String();
-      }
+      if (dataInicio != null) queryParams['data_inicio'] = dataInicio.toIso8601String();
+      if (dataFim != null) queryParams['data_fim'] = dataFim.toIso8601String();
 
       final response = await _dio.get(
-        '/chamados',
+        Constants.chamadosEndpoint,
         queryParameters: queryParams,
       );
 
-      if (response.statusCode == 200 && response.data is List) {
-        return (response.data as List)
-            .map((json) => Chamado.fromJson(json))
-            .toList();
+      if (response.statusCode == 200) {
+        var rawData = response.data;
+        if (rawData is Map && rawData.containsKey('data')) {
+          rawData = rawData['data'];
+        }
+
+        if (rawData is List) {
+          return rawData.map((json) => Chamado.fromJson(json)).toList();
+        }
       }
 
       return [];
@@ -163,13 +154,16 @@ class ApiService {
     }
   }
 
-  /// GET /chamados/:id
   Future<Chamado> getChamadoById(String id) async {
     try {
-      final response = await _dio.get('/chamados/$id');
+      final response = await _dio.get('${Constants.chamadosEndpoint}/$id');
 
       if (response.statusCode == 200) {
-        return Chamado.fromJson(response.data);
+        var data = response.data;
+        if (data is Map && data.containsKey('data')) {
+           data = data['data'];
+        }
+        return Chamado.fromJson(data);
       } else {
         throw 'Chamado não encontrado';
       }
@@ -178,8 +172,6 @@ class ApiService {
     }
   }
 
-  /// POST /chamados
-  /// Body: { id_usuario_abertura, prioridade_chamado, descricao_categoria, descricao_problema, descricao_detalhada }
   Future<Chamado> criarChamado({
     required int idUsuario,
     required String titulo,
@@ -189,31 +181,26 @@ class ApiService {
     String? imagemPath,
   }) async {
     try {
-      // Formatar descrição detalhada em markdown
-      String descricaoDetalhada =
-          '**Título:** $titulo\n\n**Descrição:** $descricao';
-
-      // Converter prioridade para lowercase
+      String descricaoDetalhada = '**Título:** $titulo\n\n**Descrição:** $descricao';
       String prioridadeLower = prioridade.toLowerCase();
 
-      // NOTA: A API não suporta upload de imagem diretamente no endpoint de criar chamado!
-      // Você precisará adicionar um endpoint separado ou modificar o backend
-
       final response = await _dio.post(
-        '/chamados',
+        Constants.chamadosEndpoint,
         data: {
           'id_usuario_abertura': idUsuario,
-          'prioridade_chamado':
-              prioridadeLower, // 'baixa', 'media', 'alta', 'urgente'
-          'descricao_categoria': categoriaId, // 'hardware', 'software', etc
-          'descricao_problema':
-              _gerarSlugProblema(titulo), // Gera slug do título
+          'prioridade_chamado': prioridadeLower,
+          'descricao_categoria': categoriaId,
+          'descricao_problema': _gerarSlugProblema(titulo),
           'descricao_detalhada': descricaoDetalhada,
         },
       );
 
       if (response.statusCode == 201) {
-        return Chamado.fromJson(response.data);
+        var data = response.data;
+        if (data is Map && data.containsKey('data')) {
+           data = data['data'];
+        }
+        return Chamado.fromJson(data);
       } else {
         throw response.data['error'] ?? 'Erro ao criar chamado';
       }
@@ -223,10 +210,47 @@ class ApiService {
   }
 
   // ========================================
+  // INTEGRAÇÃO IA (GEMINI)
+  // ========================================
+
+  Future<Map<String, dynamic>> getSolucaoIA(String idChamado) async {
+    try {
+      final response = await _dio.get('${Constants.chamadosEndpoint}/$idChamado/solucao-ia');
+      
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw 'Solução não encontrada';
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw 'A IA ainda está analisando este chamado. Tente novamente em alguns instantes.';
+      }
+      throw _handleError(e);
+    }
+  }
+
+  // CORRIGIDO: Converte ID para int e usa formato correto
+  Future<void> enviarFeedbackIA(String idChamado, bool funcionou, String comentario) async {
+    try {
+      // Converte o ID para int para evitar erro 403
+      final idNumerico = int.parse(idChamado);
+      
+      await _dio.post(
+        '/api/chamados/$idNumerico/feedback-ia',
+        data: {
+          'feedback': funcionou ? 'DEU_CERTO' : 'DEU_ERRADO'
+        },
+      );
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  // ========================================
   // HELPERS
   // ========================================
 
-  /// Gera slug do título (ex: "PC não liga" -> "pc-nao-liga")
   String _gerarSlugProblema(String titulo) {
     return titulo
         .toLowerCase()
@@ -241,43 +265,25 @@ class ApiService {
         .replaceAll(RegExp(r'\s+'), '-');
   }
 
-  /// Tratamento de erros
   String _handleError(DioException error) {
     if (error.response != null) {
       final statusCode = error.response!.statusCode;
       final data = error.response!.data;
 
-      // Tentar extrair mensagem de erro
       String? message;
       if (data is Map) {
         message = data['error'] ?? data['message'] ?? data['details'];
       }
 
       switch (statusCode) {
-        case 400:
-          return message ?? 'Requisição inválida';
-        case 401:
-          return message ?? 'Não autorizado. Faça login novamente';
-        case 403:
-          return message ?? 'Acesso negado';
-        case 404:
-          return message ?? 'Recurso não encontrado';
-        case 500:
-          return message ?? 'Erro no servidor. Tente novamente mais tarde';
-        default:
-          return message ?? 'Erro desconhecido';
+        case 400: return message ?? 'Requisição inválida (Dados incorretos)';
+        case 401: return message ?? 'Sessão expirada. Faça login novamente.';
+        case 403: return message ?? 'Acesso negado';
+        case 404: return message ?? 'Recurso não encontrado';
+        case 500: return message ?? 'Erro no servidor';
+        default: return message ?? 'Erro desconhecido: $statusCode';
       }
     }
-
-    if (error.type == DioExceptionType.connectionTimeout ||
-        error.type == DioExceptionType.receiveTimeout) {
-      return 'Tempo de conexão esgotado. Verifique sua internet';
-    }
-
-    if (error.type == DioExceptionType.connectionError) {
-      return 'Erro de conexão. Verifique se a API está rodando';
-    }
-
-    return 'Erro ao conectar com o servidor';
+    return 'Erro de conexão';
   }
 }

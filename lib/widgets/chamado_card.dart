@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/chamado.dart';
 import '../utils/app_theme.dart';
+
 
 class ChamadoCard extends StatelessWidget {
   final Chamado chamado;
@@ -14,41 +16,35 @@ class ChamadoCard extends StatelessWidget {
   });
 
   Color _getStatusColor() {
-    switch (chamado.getStatusColor()) {
-      case 'blue':
-        return AppTheme.vibrantViolet; // ← USE AS CORES DO TEMA
-      case 'orange':
-        return AppTheme.peachOrange;
-      case 'yellow':
-        return AppTheme.atomicTangerine;
-      case 'green':
-        return const Color(0xFF4CAF50);
-      case 'grey':
-        return AppTheme.coolGray;
-      default:
-        return AppTheme.vibrantViolet;
-    }
+    final s = chamado.descricaoStatusChamado.toLowerCase();
+    if (s.contains('aberto')) return AppTheme.vibrantViolet;
+    if (s.contains('em andamento') || s.contains('com analista') || s.contains('andamento')) return AppTheme.peachOrange;
+    if (s.contains('aguardando') || s.contains('triagem')) return AppTheme.atomicTangerine;
+    if (s.contains('resolvido') || s.contains('fechado')) return const Color(0xFF4CAF50);
+    if (s.contains('rejeitado')) return AppTheme.coolGray;
+    return AppTheme.vibrantViolet;
   }
 
   Color _getPrioridadeColor() {
-    switch (chamado.getPrioridadeColor()) {
-      case 'green':
-        return const Color(0xFF4CAF50);
-      case 'yellow':
-        return AppTheme.atomicTangerine;
-      case 'orange':
-        return AppTheme.peachOrange;
-      case 'red':
-        return Colors.red;
-      default:
-        return AppTheme.coolGray;
-    }
+    final p = chamado.prioridadeChamado.toLowerCase();
+    if (p.contains('baixa')) return const Color(0xFF4CAF50);
+    if (p.contains('média') || p.contains('media')) return AppTheme.atomicTangerine;
+    if (p.contains('alta')) return AppTheme.peachOrange;
+    if (p.contains('urgente')) return Colors.red;
+    return AppTheme.coolGray;
+  }
+
+  // Função para processar \n literal
+  String _processarTexto(String texto) {
+    return texto.replaceAll(r'\n', '\n');
   }
 
   @override
   Widget build(BuildContext context) {
-    final dataFormatada =
-        DateFormat('dd/MM/yyyy HH:mm').format(chamado.dataAbertura);
+    final dataFormatada = DateFormat('dd/MM/yyyy HH:mm').format(chamado.dataAbertura);
+    
+    // Processa o texto para converter \n literais em quebras reais
+    final descricaoProcessada = _processarTexto(chamado.descricaoDetalhada);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -66,7 +62,7 @@ class ChamadoCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      chamado.titulo,
+                      chamado.tituloChamado,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -90,7 +86,7 @@ class ChamadoCard extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      chamado.status,
+                      chamado.descricaoStatusChamado,
                       style: TextStyle(
                         color: _getStatusColor(),
                         fontSize: 12,
@@ -102,15 +98,35 @@ class ChamadoCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
 
-              // Linha 2: Descrição
-              Text(
-                chamado.descricao,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[700],
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              // Linha 2: Descrição COM MARKDOWN (SEM ALTURA FIXA)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: 60, // Altura máxima
+                      maxWidth: constraints.maxWidth,
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: MarkdownBody(
+                        data: descricaoProcessada,
+                        styleSheet: MarkdownStyleSheet(
+                          p: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                            height: 1.4,
+                          ),
+                          strong: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.midnightNavy,
+                          ),
+                        ),
+                        shrinkWrap: true,
+                        fitContent: true,
+                      ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 12),
 
@@ -124,7 +140,7 @@ class ChamadoCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    chamado.categoria,
+                    chamado.descricaoCategoria,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
@@ -149,7 +165,7 @@ class ChamadoCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          chamado.prioridade,
+                          chamado.prioridadeChamado,
                           style: TextStyle(
                             fontSize: 12,
                             color: _getPrioridadeColor(),
@@ -186,11 +202,15 @@ class ChamadoCard extends StatelessWidget {
                     color: Colors.grey[600],
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    chamado.usuarioNome,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
+                  Flexible(
+                    child: Text(
+                      chamado.usuarioNome,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -207,11 +227,15 @@ class ChamadoCard extends StatelessWidget {
                       color: Colors.grey[600],
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      'Técnico: ${chamado.tecnicoNome}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
+                    Flexible(
+                      child: Text(
+                        'Técnico: ${chamado.tecnicoNome}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],

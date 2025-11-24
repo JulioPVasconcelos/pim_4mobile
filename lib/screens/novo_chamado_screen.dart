@@ -63,7 +63,9 @@ class _NovoChamadoScreenState extends State<NovoChamadoScreen> {
         ),
       );
     } finally {
-      setState(() => _isLoadingCategorias = false);
+      if (mounted) {
+        setState(() => _isLoadingCategorias = false);
+      }
     }
   }
 
@@ -149,9 +151,14 @@ class _NovoChamadoScreenState extends State<NovoChamadoScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
 
+      // Verificação de segurança para garantir que o usuário está logado
+      if (authService.currentUser == null) {
+        throw 'Usuário não identificado. Faça login novamente.';
+      }
+
       await authService.apiService.criarChamado(
-        idUsuario:
-            int.parse(authService.currentUser!.id), // ← ID do usuário logado
+        // CORREÇÃO AQUI: Removemos o int.parse() pois .id já é inteiro
+        idUsuario: authService.currentUser!.id, 
         titulo: _tituloController.text.trim(),
         descricao: _descricaoController.text.trim(),
         categoriaId: _categoriaSelecionada!.id,
@@ -260,12 +267,12 @@ class _NovoChamadoScreenState extends State<NovoChamadoScreen> {
                       // Label Categoria
                       const Text(
                         'Categoria',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(color: Colors.black87), // Ajustei cor para visibilidade padrão
                       ),
                       const SizedBox(height: 8),
                       // Categoria
                       DropdownButtonFormField<Categoria>(
-                        initialValue: _categoriaSelecionada,
+                        value: _categoriaSelecionada, // Usar value em vez de initialValue para reagir a mudanças
                         decoration: InputDecoration(
                           prefixIcon: const Icon(
                             Icons.category,
@@ -297,12 +304,12 @@ class _NovoChamadoScreenState extends State<NovoChamadoScreen> {
                       // Label Prioridade
                       const Text(
                         'Prioridade',
-                        style: TextStyle(color: Colors.white),
+                        style: TextStyle(color: Colors.black87),
                       ),
                       const SizedBox(height: 8),
                       // Prioridade
                       DropdownButtonFormField<String>(
-                        initialValue: _prioridadeSelecionada,
+                        value: _prioridadeSelecionada,
                         decoration: InputDecoration(
                           prefixIcon: const Icon(
                             Icons.flag,

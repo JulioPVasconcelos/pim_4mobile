@@ -1,102 +1,96 @@
 class Chamado {
   final String id;
-  final String titulo;
-  final String descricao;
-  final String status;
-  final String prioridade;
-  final String categoria;
+  final String tituloChamado;
+  final String descricaoDetalhada;
+  final String descricaoStatusChamado;
+  final String prioridadeChamado;
+  final String descricaoCategoria;
   final DateTime dataAbertura;
+  final DateTime? dataFechamento;
   final String? imagemUrl;
   final String usuarioNome;
   final String? tecnicoNome;
 
   Chamado({
     required this.id,
-    required this.titulo,
-    required this.descricao,
-    required this.status,
-    required this.prioridade,
-    required this.categoria,
+    required this.tituloChamado,
+    required this.descricaoDetalhada,
+    required this.descricaoStatusChamado,
+    required this.prioridadeChamado,
+    required this.descricaoCategoria,
     required this.dataAbertura,
+    this.dataFechamento,
     this.imagemUrl,
     required this.usuarioNome,
     this.tecnicoNome,
   });
 
-  // AJUSTADO PARA A API SISTEC
   factory Chamado.fromJson(Map<String, dynamic> json) {
-    // Extrair título do campo descricao_detalhada se existir
-    String titulo = json['titulo_chamado'] ?? 'Sem título';
-    String descricao = json['descricao_detalhada'] ?? '';
+    // títulos e descrições possíveis na API
+    String titulo = json['titulo_chamado'] ?? json['titulo'] ?? 'Sem título';
+    String descricao = json['descricao_detalhada'] ?? json['descricao'] ?? '';
+    String status = json['descricao_status_chamado'] ?? json['status'] ?? 'Aberto';
+    String categoria = json['descricao_categoria_chamado'] ?? json['categoria'] ?? 'Geral';
 
-    // Converter prioridade numérica para string
-    String prioridade = _converterPrioridade(json['prioridade_chamado']);
+    String id = json['id_chamado']?.toString() ?? json['id']?.toString() ?? '0';
+
+    dynamic prioridadeRaw = json['prioridade_chamado'] ?? json['prioridade'];
+    String prioridade = _converterPrioridade(prioridadeRaw);
+
+    DateTime parseDate(dynamic value, DateTime fallback) {
+      if (value == null) return fallback;
+      try {
+        return DateTime.parse(value.toString());
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    DateTime dataAbert = parseDate(json['data_abertura'] ?? json['created_at'] ?? json['createdAt'], DateTime.now());
+    DateTime? dataFech = json['data_fechamento'] != null
+        ? (DateTime.tryParse(json['data_fechamento'].toString()))
+        : (json['closed_at'] != null ? DateTime.tryParse(json['closed_at'].toString()) : null);
+
+    String usuario = json['usuario_abertura'] ?? json['usuario'] ?? json['user_name'] ?? 'Usuário';
+    String? tecnico = json['usuario_resolucao'] ?? json['tecnico'] ?? json['assigned_to']?.toString();
+
+    String? imagem = json['imagem_url'] ?? json['imagem'] ?? json['image'];
 
     return Chamado(
-      id: json['id_chamado'].toString(),
-      titulo: titulo,
-      descricao: descricao,
-      status: json['descricao_status_chamado'] ?? 'Aberto',
-      prioridade: prioridade,
-      categoria: json['descricao_categoria_chamado'] ?? '',
-      dataAbertura: DateTime.parse(
-          json['data_abertura'] ?? DateTime.now().toIso8601String()),
-      imagemUrl: null, // API não suporta imagem ainda
-      usuarioNome: json['usuario_abertura'] ?? 'Usuário',
-      tecnicoNome: json['usuario_resolucao'],
+      id: id,
+      tituloChamado: titulo,
+      descricaoDetalhada: descricao,
+      descricaoStatusChamado: status,
+      prioridadeChamado: prioridade,
+      descricaoCategoria: categoria,
+      dataAbertura: dataAbert,
+      dataFechamento: dataFech,
+      imagemUrl: imagem,
+      usuarioNome: usuario,
+      tecnicoNome: tecnico,
     );
   }
 
   static String _converterPrioridade(dynamic valor) {
+    if (valor == null) return 'Média';
     if (valor is String) return valor;
-
-    switch (valor) {
-      case 1:
-        return 'Baixa';
-      case 2:
-        return 'Média';
-      case 3:
-        return 'Alta';
-      case 4:
-        return 'Urgente';
-      default:
-        return 'Média';
+    if (valor is int) {
+      switch (valor) {
+        case 1:
+          return 'Baixa';
+        case 2:
+          return 'Média';
+        case 3:
+          return 'Alta';
+        case 4:
+          return 'Urgente';
+        default:
+          return 'Média';
+      }
     }
-  }
-
-  // Resto do código igual...
-  String getStatusColor() {
-    switch (status.toLowerCase()) {
-      case 'aberto':
-        return 'blue';
-      case 'aprovado':
-      case 'com analista':
-        return 'orange';
-      case 'aguardando resposta':
-        return 'yellow';
-      case 'resolvido':
-        return 'green';
-      case 'fechado':
-        return 'grey';
-      case 'rejeitado':
-        return 'red';
-      default:
-        return 'blue';
-    }
-  }
-
-  String getPrioridadeColor() {
-    switch (prioridade.toLowerCase()) {
-      case 'baixa':
-        return 'green';
-      case 'média':
-        return 'yellow';
-      case 'alta':
-        return 'orange';
-      case 'urgente':
-        return 'red';
-      default:
-        return 'grey';
-    }
+    // tentativas de parse de string numérica
+    final parsed = int.tryParse(valor.toString());
+    if (parsed != null) return _converterPrioridade(parsed);
+    return valor.toString();
   }
 }

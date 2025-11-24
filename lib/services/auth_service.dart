@@ -26,14 +26,20 @@ class AuthService extends ChangeNotifier {
         return false;
       }
 
-      // Buscar usuário salvo (NÃO precisa de token!)
+      // Buscar usuário salvo (NÃO precisa de token, a sessão é via cookie)
       final userJson = prefs.getString(Constants.userKey);
 
       if (userJson != null) {
-        _currentUser = User.fromJson(json.decode(userJson));
-        _isAuthenticated = true;
-        notifyListeners();
-        return true;
+        try {
+          _currentUser = User.fromJson(json.decode(userJson));
+          _isAuthenticated = true;
+          notifyListeners();
+          return true;
+        } catch (e) {
+          print('Erro ao decodificar usuário salvo: $e');
+          await logout(); // Limpa dados corrompidos
+          return false;
+        }
       }
 
       return false;
@@ -48,27 +54,62 @@ class AuthService extends ChangeNotifier {
     try {
       final response = await _apiService.login(email, senha);
 
-      // A API Sistec retorna: { message, usuario }
-      final userData = response['usuario'];
+      print('🔍 DEBUG LOGIN RESPONSE: $response');
 
-      if (userData == null) {
-        throw 'Resposta inválida do servidor';
+      // ============================================================
+      // LÓGICA DE EXTRAÇÃO ROBUSTA (Resolve o problema do JSON)
+      // ============================================================
+      dynamic userData;
+
+      // 1. Tenta pegar dentro de 'data' (ex: { success: true, data: { user: ... } })
+      if (response.containsKey('data')) {
+        final data = response['data'];
+        if (data is Map) {
+          userData = data['user'] ?? data['usuario'] ?? data;
+        } else {
+          userData = data;
+        }
+      } 
+      // 2. Tenta pegar na raiz (ex: { usuario: ... })
+      else {
+        userData = response['usuario'] ?? response['user'];
       }
 
-      // A sessão já está ativa automaticamente (via cookies)!
-      _currentUser = User.fromJson(userData);
+      if (userData == null) {
+        throw 'Dados do usuário não encontrados na resposta. Chaves: ${response.keys}';
+      }
+
+      // 3. Garante que é um Map
+      Map<String, dynamic> userMap;
+      if (userData is List) {
+         if (userData.isEmpty) throw 'Lista de usuários vazia';
+         userMap = userData.first;
+      } else {
+         userMap = Map<String, dynamic>.from(userData);
+      }
+
+      // Converte para Modelo
+      try {
+        _currentUser = User.fromJson(userMap);
+      } catch (e) {
+        print('❌ Erro conversão User.fromJson: $e');
+        print('Dados recebidos: $userMap');
+        throw 'Erro ao processar dados do usuário';
+      }
+      
       _isAuthenticated = true;
 
-      // Persistir se "lembrar senha" estiver marcado
+      // Persistir dados
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(Constants.rememberMeKey, rememberMe);
 
       if (rememberMe) {
-        await prefs.setString(Constants.userKey, json.encode(userData));
+        await prefs.setString(Constants.userKey, json.encode(userMap));
       }
 
       notifyListeners();
     } catch (e) {
+      print('❌ Erro no Login (AuthService): $e');
       rethrow;
     }
   }
@@ -76,10 +117,8 @@ class AuthService extends ChangeNotifier {
   // Fazer logout
   Future<void> logout() async {
     try {
-      // Chamar API para encerrar sessão
       await _apiService.logout();
 
-      // Limpar dados salvos
       await _secureStorage.delete(key: Constants.tokenKey);
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(Constants.userKey);
@@ -94,6 +133,5 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // Obter API Service
   ApiService get apiService => _apiService;
 }
